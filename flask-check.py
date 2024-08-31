@@ -3,6 +3,7 @@ import time
 import json
 from functools import wraps
 import paramiko
+
 rem_host = "placeholder"
 rem_user = "placeholder"
 rem_pass = "placeholder"
