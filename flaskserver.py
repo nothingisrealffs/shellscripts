@@ -2,23 +2,13 @@ from flask import Flask, request, jsonify, abort
 import time
 import json
 from functools import wraps
-import paramiko
-
-rem_host = "placeholder"
-rem_user = "placeholder"
-rem_pass = "placeholder"
-def ssh_send():
-    ip = request.remote_addr
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(rem_host, username=rem_user,password=rem_pass)
-    stdin, stdout, stderr = ssh.exec_command('/usr/bin/remotechange.sh '+ip)
-    ssh.close()
 
 app = Flask(__name__)
 
+# Set the correct sequence based on the SVG file names
 correct_sequence = [5, 30, 22, 31, 8, 14, 1]
 
+# File to store blocked IPs
 BLOCKED_IPS_FILE = 'blocked_ips.json'
 
 def load_blocked_ips():
@@ -55,6 +45,7 @@ def check_sequence():
     if user_sequence == correct_sequence:
         return jsonify({'correct': True, 'nextPage': '/success'})
     else:
+        # Block the IP
         ip = request.remote_addr
         blocked_ips = load_blocked_ips()
         blocked_ips[ip] = time.time()
@@ -69,7 +60,6 @@ def index():
 @app.route('/success')
 @check_ip_blocked
 def success():
-    ssh_send()
     return "Congratulations! You've solved the puzzle."
 
 if __name__ == '__main__':
