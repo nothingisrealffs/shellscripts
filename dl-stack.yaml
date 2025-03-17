@@ -1,0 +1,186 @@
+##Designed to work for Podman, will work for Kubes. Will need further testing for kubes.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: media-stack
+spec:
+  restartPolicy: Always
+  securityContext:
+    sysctls:
+      - name: net.ipv6.conf.all.disable_ipv6
+        value: "0"
+  containers:
+    - name: downloader
+      image: docker.io/haugene/transmission-openvpn
+      securityContext:
+        capabilities:
+          add:
+            - NET_ADMIN
+            - NET_RAW
+            - MKNOD
+        privileged: true
+      env:
+        - name: OPENVPN_PROVIDER
+          value: "custom"
+        - name: OPENVPN_CONFIG
+          value: "PUTYOURCONFIGINHEREWITHOUTTHE.OVPNPART"
+        - name: OPENVPN_USERNAME
+          value: "USERNAME_ID"
+        - name: OPENVPN_PASSWORD
+          value: "PASSWORD_ID"
+        - name: LOCAL_NETWORK
+          value: "192.168.0.0/16"
+        - name: CREATE_TUN_DEVICE
+          value: "false"
+      ports:
+        - containerPort: 9091
+          hostPort: 9091
+      volumeMounts:
+        - name: downloads
+          mountPath: /data
+        - name: transfer
+          mountPath: /transfer
+        - name: vpn-config
+          mountPath: /config
+        - name: vpn-config
+          mountPath: /etc/openvpn/custom
+#      lifecycle:
+#        postStart:
+#          exec:
+#            command:
+#              - "/bin/sh"
+#              - "-c"
+#              - "tail -f /dev/null"
+    - name: sonarr
+      image: lscr.io/linuxserver/sonarr
+      env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "America/Indianapolis"
+      ports:
+        - containerPort: 8989
+          hostPort: 8989
+      volumeMounts:
+        - name: downloads
+          mountPath: /downloads
+        - name: media
+          mountPath: /tv
+        - name: config-sonarr
+          mountPath: /config
+    - name: radarr
+      image: lscr.io/linuxserver/radarr
+      env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "America/Indianapolis"
+      ports:
+        - containerPort: 7878
+          hostPort: 7878
+      volumeMounts:
+        - name: downloads
+          mountPath: /downloads
+        - name: media
+          mountPath: /movies
+        - name: config-radarr
+          mountPath: /config
+    - name: lidarr
+      image: lscr.io/linuxserver/lidarr
+      env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "America/Indianapolis"
+      ports:
+        - containerPort: 8686
+          hostPort: 8686
+      volumeMounts:
+        - name: downloads
+          mountPath: /downloads
+        - name: media
+          mountPath: /music
+        - name: config-lidarr
+          mountPath: /config
+      lifecycle:
+        postStart:
+          exec:
+            command:
+              - "/bin/sh"
+              - "-c"
+              - |
+                  PLUGIN_URL="https://github.com/ta264/Lidarr.Plugin.Deemix/releases/latest/download/Lidarr.Plugin.Deemix.zip"
+                  wget -O /config/Lidarr.Plugin.Deemix.zip $PLUGIN_URL
+                  unzip /config/Lidarr.Plugin.Deemix.zip -d /config/Plugins/
+                  rm /config/Lidarr.Plugin.Deemix.zip
+                  kill -SIGTERM $(pidof Lidarr)
+    - name: ombi
+      image: lscr.io/linuxserver/ombi
+      env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "America/Indianapolis"
+      ports:
+        - containerPort: 3579
+          hostPort: 3579
+      volumeMounts:
+        - name: config-ombi
+          mountPath: /config
+    - name: jackett
+      image: lscr.io/linuxserver/jackett
+      env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "America/Indianapolis"
+      ports:
+        - containerPort: 9117
+          hostPort: 9117
+      volumeMounts:
+        - name: downloads
+          mountPath: /downloads
+        - name: config-jackett
+          mountPath: /config
+  volumes:
+    - name: downloads
+      hostPath:
+        path: /your/path
+    - name: transfer
+      hostPath:
+        path: /your/path/#2
+    - name: media
+      hostPath:
+        path: /your/path/#3
+    - name: config
+      hostPath:
+        path: /your/path/#4
+    - name: vpn-config
+      hostPath:
+        path: /your/path/#5
+    - name: config-sonarr
+      hostPath:
+        path: /your/path/#6
+    - name: config-radarr
+      hostPath:
+        path: /your/path/#7
+    - name: config-lidarr
+      hostPath:
+        path: /your/path/#8
+    - name: config-ombi
+      hostPath:
+        path: /your/path/#9
+    - name: config-jackett
+      hostPath:
+        path: /your/path/#10
